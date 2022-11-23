@@ -1,6 +1,7 @@
 #from matplotlib.pyplot import grid
 from unittest import result
 import numpy as np
+import scipy
 from scipy.stats import qmc
 import math
 from scipy import fft
@@ -97,6 +98,7 @@ class Model:
         self.no_of_iterations_per_perturbation = no_of_iterations_per_perturbation
         #self.discrepancy_arr_for_all_perturbation = []
         self.criteria_array_for_all_perturbations = np.array([])
+        self.history = []
         pass
     
     def initialize(self):
@@ -132,7 +134,7 @@ class Model:
         file_instance = open(self.file_name, "a")
         print("Number of perturbations = ", self.no_of_perturbations_performed, file=file_instance)
         print("The sample created is: ", self.sample_obtained, file=file_instance )
-        print("Discrepancy of the sample is: ", self.criteria_value_of_sample, file=file_instance)
+        print("Criteria value of the sample is: ", self.criteria_value_of_sample, file=file_instance)
         print("Expected value of discrepancy of the sample: ", optimal_angles_data['fun'], file=file_instance)
         print("Criteria value for all perturbations", repr(self.criteria_array_for_all_perturbations), file=file_instance)
         file_instance.close()
@@ -141,11 +143,11 @@ class Model:
     def generate_initial_sample(self):
         initial_sample =  qmc.LatinHypercube(d =self.dimension_of_input_space).random(self.no_of_coefficients)
         
-        file_instance = open(self.file_name, "a")
-        print("Initial sample by Latin Hypercube Sequence is:", initial_sample, file=file_instance)
-        print("This sample is used to create the fourier series representation of the distribution function", file=file_instance)
-        print("Length of the sample: ", len(initial_sample),file=file_instance)
-        file_instance.close()
+        #file_instance = open(self.file_name, "a")
+        #print("Initial sample by Latin Hypercube Sequence is:", initial_sample, file=file_instance)
+        #print("This sample is used to create the fourier series representation of the distribution function", file=file_instance)
+        #print("Length of the Fourier sample: ", len(initial_sample),file=file_instance)
+        #file_instance.close()
         
         return initial_sample
    
@@ -155,27 +157,20 @@ class Model:
         This also takes care for samples with coordinates 1.
         We consider their coordinate as grid_size-1th coordinate
         '''
-        report_file = open("report_file_data.txt", "a")
-        print("initial sample by halton sequence:", initial_sample, file=report_file)
         initial_sample_discretized = []
         for each_point in initial_sample:
             disc_point = [(math.floor(each_point[i]/self.delta) - 1) if math.floor(each_point[i]/self.delta) == self.grid_size else (math.floor(each_point[i]/self.delta)) for i in range(self.dimension_of_input_space)]
             initial_sample_discretized.append(disc_point)
         
-        print("Discretization of the sample", initial_sample_discretized, file=report_file)
-        report_file.close()
         return initial_sample_discretized
 
     def grid_to_cell_mapping_probability(self, initial_sample_discretized):
-        report_file = open("report_file_data.txt", "a")
         pmf=np.zeros(self.no_of_coefficients)
         for each_sample in initial_sample_discretized:
             pmf_index = 0
             for i in range(self.dimension_of_input_space):
                 pmf_index += each_sample[i] * pow(self.grid_size, i)
             pmf[pmf_index] +=1
-        print("pmf is: ",pmf, file=report_file)
-        report_file.close()
         return pmf/len(initial_sample_discretized)
     
     def fourier_transform(self, root_prob_mat):
@@ -215,7 +210,21 @@ class Model:
 
 
     def criteria_result(self, sample):
-        result = qmc.discrepancy(sample)
+        '''
+        1. We want to maximize the maximin distance
+        2. We want as low discrepancy as possible
+        3. We want E-optimality criteria
+        '''
+        maximindistance = max(scipy.spatial.distance.pdist(sample)) # By default it is Euclidean distance
+        discrepancy = qmc.discrepancy(sample)
+
+        sample_arr = np.array([arr.tolist() for arr in sample])
+        t = sample_arr.T # 4x10
+        u,s,v = np.linalg.svd(t)
+        
+        min_eigenvalue = np.min(s)
+        self.history.append([discrepancy, maximindistance, min_eigenvalue])
+        result = (discrepancy - maximindistance - min_eigenvalue)
         '''
         if result < self.disc_of_optimal_sample:
             self.optimal_sample = sample
