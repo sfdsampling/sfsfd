@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 import scipy.optimize as optimize
 from scipy.spatial.distance import pdist
 from scipy.stats import qmc
@@ -108,8 +109,16 @@ class SamplingModel:
             #                    f"{self.grid_size}\n")
             #file_instance.write("Total number of fourier coefficients = " +
             #                    f"{self.no_of_coefficients}\n")
-        
-                
+
+        # Log meta-data
+        logging.info("New sample:")
+        logging.info(f"  p dimension: {self.dimension_of_input_space}")
+        logging.info(f"  sample size: {self.sample_size}")
+        logging.info(f"  n grid cell: {self.grid_size}")
+
+        # Tick
+        import time
+        start = time.time()
         # Initialize variables
         initial_sample = self.generate_initial_sample()
         discretized_sample = self.discretization_of_points(
@@ -131,6 +140,8 @@ class SamplingModel:
             x0 = angle_array, 
             method = 'COBYLA'
         )
+        # Tock
+        walltime = time.time() - start
         # Write history data to the output file
         with open(self.file_name, "a") as file_instance:
             #file_instance.write("Number of perturbations = " +
@@ -145,6 +156,7 @@ class SamplingModel:
                                 f"{self.min_eigen_value_of_sample}\n")
             file_instance.write("Maximum maximin distance of the sample is: " +
                                 f"{self.maximin_dist_value_of_sample}\n")
+            file_instance.write(f"Time to solution is: {walltime}\n")
             #file_instance.write("Expected value of discrepancy of the sample:"
             #                    + f" {optimal_angles_data['fun']}\n")
             #file_instance.write("Criteria value for all perturbations: " +
@@ -319,6 +331,15 @@ class SamplingModel:
         self.discrepancy_value_of_sample = optimal_sample_disc_value
         self.min_eigen_value_of_sample = optimal_sample_eigen_value
         self.maximin_dist_value_of_sample = optimal_sample_maximin_value
+
+        logging.info(f"d: {self.dimension_of_input_space}, " +
+                     f"n: {self.sample_size}, " +
+                     f"iter: {self.iterate}")
+        logging.info(f"  sample size: {self.no_of_iterations_per_perturbation}")
+        logging.info(f"  discrep: {optimal_sample_disc_value}")
+        logging.info(f"  e-optim: {optimal_sample_eigen_value}")
+        logging.info(f"  maximin: {optimal_sample_maximin_value}")
+        logging.info(f"  normalized score: {criteria_value_for_the_perturbation}")
 
         return criteria_value_for_the_perturbation
 

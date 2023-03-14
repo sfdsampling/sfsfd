@@ -1,0 +1,29 @@
+********************************
+           SF-SFD                
+********************************
+
+The dimension of the input space is: 4
+The sample created is: [array([0.8910507 , 0.53263836, 0.09163107, 0.64479468]), array([0.92987413, 0.82105832, 0.58202609, 0.70560225]), array([0.1538715 , 0.17130302, 0.09538539, 0.02299062]), array([0.78909431, 0.75312677, 0.12650883, 0.19700224]), array([0.79570376, 0.87088712, 0.20608186, 0.05774633]), array([0.77345801, 0.8034057 , 0.19222262, 0.18285232]), array([0.76120934, 0.85733925, 0.90506948, 0.7710964 ]), array([0.67373005, 0.02667739, 0.50428502, 0.72176583]), array([0.66702999, 0.90510842, 0.44066763, 0.96479265]), array([0.82309001, 0.67767893, 0.85845524, 0.81967049])]
+Criteria value of the sample is: -0.5454589375394563
+Discrepancy value of the sample is: 0.24485337920528516
+Min eigen value of the sample is: 0.4477883462621462
+Maximum maximin distance of the sample is: 1.4334418455615079
+********************************
+           LHS                  
+********************************
+The discrepancy of the sample is =0.030984877425094925
+The maximin distance of the sample is =1.3483495493063453
+The min eigenvalue of the sample is =-0.6097423577596529
+The weighted criterion value is =-1.9271070296409034
+********************************
+           SOBOL                 
+********************************
+The discrepancy of the sample is =0.042199053341611226
+The maximin distance of the sample is =1.4842927608797396
+The min eigenvalue of the sample is =-0.5102438592639064
+The weighted criterion value is =-1.9523375668020346
+********************************
+           SF-SFD                
+********************************
+
+The dimension of the input space is: 4
