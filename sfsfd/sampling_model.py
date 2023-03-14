@@ -3,7 +3,7 @@ import scipy.optimize as optimize
 from scipy.spatial.distance import pdist
 from scipy.stats import qmc
 from scipy import fft
-from utils import polar_to_fourier, fourier_to_polar
+from .utils import polar_to_fourier, fourier_to_polar
 
 
 class SamplingModel:
@@ -30,6 +30,7 @@ class SamplingModel:
                  grid_size=3, 
                  file_name='sfd_sample.txt',
                  no_of_iterations_per_perturbation=100,
+                 adaptive_sample_size=0,
                  sample_size=10,
                  weights=None):
         """ Constructor for the SamplingModel class.
@@ -49,6 +50,10 @@ class SamplingModel:
             no_of_iterations_per_perturbation (int, optional): The number
                 of samples that we will take in each iteration of the
                 optimization algorithm. (defaults to 100)
+
+            adaptive_sample_size (int, optional): Increase the sample
+                size every time this many iterations have elapsed.
+                A zero value (default) results in no adaptive increase.
 
             sample_size (int, optional): The size of the sample that we
                 would like to draw from our trained sampler. (defaults to 10)
@@ -78,6 +83,8 @@ class SamplingModel:
         self.no_of_perturbations_performed = 0
         self.no_of_iterations_per_perturbation = \
                                     no_of_iterations_per_perturbation
+        self.iterate = 0
+        self.adaptive_sample_size = adaptive_sample_size
         self.criteria_array_for_all_perturbations = np.array([])
         self.history = []
         if weights is None:
@@ -283,8 +290,11 @@ class SamplingModel:
             #                                    criteria_value_data[1])
             #e_optimality_array_for_iterations_in_perturbation.append(
             #                                    criteria_value_data[3])
-        
-        
+        # Update the sample size according to adaptive schedule
+        self.iterate += 1
+        if self.adaptive_sample_size:
+            if self.iterate % self.adaptive_sample_size == 0:
+                self.no_of_iterations_per_perturbation += 1
         criteria_value_for_the_perturbation = \
                     (sum(criteria_array_for_iterations_in_perturbation) /
                      len(criteria_array_for_iterations_in_perturbation))
@@ -413,7 +423,6 @@ class SamplingModel:
             low=[]
             r = each_sample_point
             for i in range(self.dimension_of_input_space-1):
-                
                 q = r // pow(self.grid_size, d-i-1)
                 r = r % pow(self.grid_size, d-i-1)
                 grid_coordinates.append(q)

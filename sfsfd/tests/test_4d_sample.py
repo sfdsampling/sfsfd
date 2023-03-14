@@ -7,7 +7,8 @@ def test_4d_sampler():
 
     dimension = 4
     grid_cells_per_dimension = 3
-    iterations = 20
+    iterations = 10
+    adaptive_sample = 200
     sample_size = 10
     file_name = ('lhc2_dimension_' + str(dimension) + '_' + 'grid_cells_' +
                  str(grid_cells_per_dimension)+'.txt')
@@ -16,6 +17,7 @@ def test_4d_sampler():
         grid_size=grid_cells_per_dimension, 
         file_name=file_name,
         no_of_iterations_per_perturbation = iterations, # Increase with dim
+        adaptive_sample_size = adaptive_sample,
         sample_size = sample_size # This can be user's choice, e.g., 10
         )
     # Train the model and save results to file_name

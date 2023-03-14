@@ -1,4 +1,4 @@
-from .. import sfsfd 
+import sfsfd 
 
 def test_2d_sampler():
     """ Demonstrate the SamplingModel class on a 2D problem with 10 iterations
@@ -15,6 +15,7 @@ def test_2d_sampler():
         grid_size=grid_cells_per_dimension, 
         file_name=file_name,
         no_of_iterations_per_perturbation = iterations, # Increase with dimension
+        adaptive_sample_size = 0, # Do not increase iterations
         sample_size = sample_size # This can be user's choice, e.g., 10
         )
     # Train the model and save results to file_name
