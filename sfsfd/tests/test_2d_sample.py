@@ -1,5 +1,4 @@
-from sfsfd import SamplingModel
-
+from .. import sfsfd 
 
 def test_2d_sampler():
     """ Demonstrate the SamplingModel class on a 2D problem with 10 iterations
@@ -11,7 +10,7 @@ def test_2d_sampler():
     sample_size = 10
     file_name = ('lhc2_dimension_' + str(dimension) + '_' + 'grid_cells_' +
                  str(grid_cells_per_dimension)+'.txt')
-    model = SamplingModel( 
+    model = sfsfd.SamplingModel( 
         dimension_of_input_space=dimension, 
         grid_size=grid_cells_per_dimension, 
         file_name=file_name,
