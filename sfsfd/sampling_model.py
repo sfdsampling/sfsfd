@@ -134,11 +134,13 @@ class SamplingModel:
             coeff_array_adjusted.append(np.real(i))
             coeff_array_adjusted.append(np.imag(i))
         angle_array = fourier_to_polar(coeff_array_adjusted)
+        bb_budget = 400 * self.dimension_of_input_space
         # Optimize with COBYLA solver
         optimal_angles_data= optimize.minimize(
             fun = self.iterative_step, 
             x0 = angle_array, 
-            method = 'COBYLA'
+            method = 'COBYLA',
+            options={'maxiters': bb_budget}
         )
         # Tock
         walltime = time.time() - start
@@ -359,7 +361,7 @@ class SamplingModel:
 
         '''
 
-        maximindistance = max(pdist(sample)) # By default Euclidean distance
+        maximindistance = min(pdist(sample)) # By default Euclidean distance
         discrepancy = qmc.discrepancy(sample)
         sample_arr = np.array([arr.tolist() for arr in sample])
         t = sample_arr.T # 4x10

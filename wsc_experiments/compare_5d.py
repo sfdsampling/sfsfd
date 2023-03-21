@@ -82,7 +82,7 @@ def latin_hypercube(dimension, sample_size, file_name):
         file_instance.write("The min eigenvalue of the sample is =" +
                                 f"{-e_optimality_lhs}\n")
         file_instance.write("The weighted criterion value is =" +
-                                f"{weighted_criteria_lhs}\n")
+                                f"{weighted_criteria_lhs/3}\n")
 
 def sobol_seq(dimension, sample_size, file_name):
     sampler = qmc.Sobol(dimension, scramble=False)
@@ -105,12 +105,12 @@ def sobol_seq(dimension, sample_size, file_name):
         file_instance.write("The min eigenvalue of the sample is =" +
                                 f"{-e_optimality_sobol}\n")
         file_instance.write("The weighted criterion value is =" +
-                                f"{weighted_criteria_sobol}\n")
+                                f"{weighted_criteria_sobol/3}\n")
 
 ### Helper function to calculate criteria scores ###
 
 def maximindist(sample):
-    maximindistance = max(pdist(sample)) # By default Euclidean distance
+    maximindistance = min(pdist(sample)) # By default Euclidean distance
     return maximindistance
 
 def e_optimality(sample):
