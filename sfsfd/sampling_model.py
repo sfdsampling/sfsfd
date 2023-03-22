@@ -140,7 +140,7 @@ class SamplingModel:
             fun = self.iterative_step, 
             x0 = angle_array, 
             method = 'COBYLA',
-            options={'maxiters': bb_budget}
+            options={'maxiter': bb_budget}
         )
         # Tock
         walltime = time.time() - start
