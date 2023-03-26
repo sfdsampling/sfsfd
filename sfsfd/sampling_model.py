@@ -5,7 +5,7 @@ from scipy.spatial.distance import pdist
 from scipy.stats import qmc
 from scipy import fft
 from .utils import polar_to_fourier, fourier_to_polar
-
+import csv
 
 class SamplingModel:
     """ This class generates sampling models via optimization of Fourier coefs.
@@ -145,7 +145,20 @@ class SamplingModel:
         # Tock
         walltime = time.time() - start
         # Write history data to the output file
+        fieldnames=["method","discrepancy","maximin","eigen_value","cumulative","time_to_sol"]
         with open(self.file_name, "a") as file_instance:
+            writer = csv.DictWriter(file_instance, fieldnames=fieldnames)
+            writer.writerow({
+                'method':'Sf-sfd',
+                'discrepancy':self.discrepancy_value_of_sample,
+                'maximin':self.maximin_dist_value_of_sample,
+                'eigen_value':self.min_eigen_value_of_sample,
+                'cumulative':self.criteria_value_of_sample,
+                'time_to_sol':walltime
+            })  
+        '''
+        with open(self.file_name, "a") as file_instance:
+
             #file_instance.write("Number of perturbations = " +
             #                    f"{self.no_of_perturbations_performed}\n")
             file_instance.write("The sample created is: " +
@@ -163,7 +176,8 @@ class SamplingModel:
             #                    + f" {optimal_angles_data['fun']}\n")
             #file_instance.write("Criteria value for all perturbations: " +
             #            f"{repr(self.criteria_array_for_all_perturbations)}\n")
-        
+        '''
+
     def generate_initial_sample(self):
         """ Step 1: Create an initial sample.
 

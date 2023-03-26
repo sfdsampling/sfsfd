@@ -3,13 +3,15 @@ import logging
 import numpy as np
 from scipy.stats import qmc
 from scipy.spatial.distance import pdist
-
+import csv
 # Problem hyperparams
 dimension_list = np.arange(3,6,1) # 3 levels
 grid_cells_per_dimension = 3 # discretization level of 3
 sample_size_list = np.arange(10,101,30) # 4 levels
 no_of_iterations_per_perturbation = 10 # starting number of perturbations
 adaptive_sample_size = 50 # increase by 1 every 100 iterations
+fieldnames = ["method","discrepancy","maximin",
+              "eigen_value","cumulative", "time_to_sol"]
 
 def comparison():
     """ Main driver routine that performs comparison of all 3 techniques. """
@@ -25,14 +27,9 @@ def comparison():
         for sample_size in sample_size_list:
             file_name = ('comparison_dimension_' + str(dimension)+'.txt')
             with open(file_name, "a") as file_instance:
-                #file_instance.write("The methods compared are: Latin Hypercube," +
-                #            " Sobol sequences and "+
-                #            " Sf-sfd\n"
-                #            )
-    
-                file_instance.write("********************************\n")
-                file_instance.write("           SF-SFD                \n")
-                file_instance.write("********************************\n")
+                file_instance.write("Dimension=", dimension)
+                writer = csv.DictWriter(file_instance, fieldnames=fieldnames)
+                writer.writeheader()
 
             sfd_sample(dimension, sample_size, file_name)
             
@@ -46,7 +43,6 @@ def sfd_sample(dimension, sample_size, file_name):
         and a desired sample size of 30. """
 
     grid_cells_per_dimension = 3
-    file_name = file_name
     model = sampling_model.SamplingModel( 
         dimension_of_input_space=dimension, 
         grid_size=grid_cells_per_dimension, 
@@ -67,22 +63,17 @@ def latin_hypercube(dimension, sample_size, file_name):
     dis_lhs = qmc.discrepancy(sample)
     maximin_lhs = maximindist(sample)
     e_optimality_lhs = e_optimality(sample)
-    weighted_criteria_lhs = dis_lhs - maximin_lhs - e_optimality_lhs
+    weighted_criteria_lhs = (dis_lhs - maximin_lhs - e_optimality_lhs)/3
     with open(file_name, "a") as file_instance:
-        file_instance.write("********************************\n")
-        file_instance.write("           LHS                  \n")
-        file_instance.write("********************************\n")
-
-        #file_instance.write("The sample is = " +
-        #                        f"{sample}\n")
-        file_instance.write("The discrepancy of the sample is =" +
-                                f"{dis_lhs}\n")
-        file_instance.write("The maximin distance of the sample is =" +
-                                f"{maximin_lhs}\n")
-        file_instance.write("The min eigenvalue of the sample is =" +
-                                f"{-e_optimality_lhs}\n")
-        file_instance.write("The weighted criterion value is =" +
-                                f"{weighted_criteria_lhs/3}\n")
+        
+        writer = csv.DictWriter(file_instance, fieldnames=fieldnames)
+        writer.writerow({
+            'method':'LHS',
+            'discrepancy':dis_lhs,
+            'maximin':maximin_lhs,
+            'eigen_value':e_optimality_lhs,
+            'cumulative':weighted_criteria_lhs
+        })
 
 def sobol_seq(dimension, sample_size, file_name):
     sampler = qmc.Sobol(dimension, scramble=False)
@@ -90,22 +81,16 @@ def sobol_seq(dimension, sample_size, file_name):
     dis_sobol = qmc.discrepancy(sample)
     maximin_sobol = maximindist(sample)
     e_optimality_sobol = e_optimality(sample)
-    weighted_criteria_sobol = dis_sobol-maximin_sobol-e_optimality_sobol
+    weighted_criteria_sobol = (dis_sobol-maximin_sobol-e_optimality_sobol)/3
     with open(file_name, "a") as file_instance:
-        file_instance.write("********************************\n")
-        file_instance.write("           SOBOL                 \n")
-        file_instance.write("********************************\n")
-
-        #file_instance.write("The sample is = " +
-        #                        f"{sample}\n")
-        file_instance.write("The discrepancy of the sample is =" +
-                                f"{dis_sobol}\n")
-        file_instance.write("The maximin distance of the sample is =" +
-                                f"{maximin_sobol}\n")
-        file_instance.write("The min eigenvalue of the sample is =" +
-                                f"{-e_optimality_sobol}\n")
-        file_instance.write("The weighted criterion value is =" +
-                                f"{weighted_criteria_sobol/3}\n")
+        writer = csv.DictWriter(file_instance, fieldnames=fieldnames)
+        writer.writerow({
+            'method':'Sobol',
+            'discrepancy':dis_sobol,
+            'maximin':maximin_sobol,
+            'eigen_value':e_optimality_sobol,
+            'cumulative':weighted_criteria_sobol
+        })
 
 ### Helper function to calculate criteria scores ###
 
