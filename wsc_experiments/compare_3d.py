@@ -37,6 +37,7 @@ def comparison():
             sfd_sample(dimension, sample_size, file_name_csv)
             latin_hypercube(dimension, sample_size, file_name_csv)
             sobol_seq(dimension, sample_size, file_name_csv)
+            random_sample(dimension, sample_size, file_name_csv)
 
 
 def sfd_sample(dimension, sample_size, file_name_csv):
@@ -78,8 +79,8 @@ def random_sample(dimension, sample_size, file_name_csv):
             best_dis_random = dis_random
             best_e_optimality_random = e_optimality_random
             best_maximin_random = maximin_random
-        i=i+1
         
+
     with open(file_name_csv, "a") as file_instance:
         
         writer = csv.DictWriter(file_instance, fieldnames=fieldnames)
