@@ -40,6 +40,40 @@ def comparison(iseed):
             latin_hypercube(dimension, sample_size, file_name_csv)
             np.random.seed(iseed) # Set numpy random seed
             sobol_seq(dimension, sample_size, file_name_csv)
+            np.random.seed(iseed)
+            random_sample(dimension, sample_size, file_name_csv)
+
+def random_sample(dimension, sample_size, file_name_csv):
+    best_sample = np.random.random_sample((sample_size, dimension))
+    best_dis_random = qmc.discrepancy(best_sample)
+    best_maximin_random = maximindist(best_sample)
+    best_e_optimality_random = e_optimality(best_sample)
+    best_weighted_criteria = (best_dis_random - best_maximin_random - best_e_optimality_random)/3
+
+    for i in range(0,20):
+        sample = np.random.random_sample((sample_size, dimension))
+        dis_random = qmc.discrepancy(sample)
+        maximin_random = maximindist(sample)
+        e_optimality_random = e_optimality(sample)
+        weighted_criteria = (dis_random - maximin_random - e_optimality_random)/3
+        if weighted_criteria < best_weighted_criteria:
+            best_sample = sample
+            best_weighted_criteria = weighted_criteria
+            best_dis_random = dis_random
+            best_e_optimality_random = e_optimality_random
+            best_maximin_random = maximin_random
+
+
+    with open(file_name_csv, "a") as file_instance:
+
+        writer = csv.DictWriter(file_instance, fieldnames=fieldnames)
+        writer.writerow({
+            'method':'Random',
+            'discrepancy':best_dis_random,
+            'maximin':best_maximin_random,
+            'eigen_value':best_e_optimality_random,
+            'cumulative':best_weighted_criteria
+        })    
 
 
 def sfd_sample(dimension, sample_size, file_name_csv):
