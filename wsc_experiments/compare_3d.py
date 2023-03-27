@@ -14,7 +14,7 @@ adaptive_sample_size = 50 # increase by 1 every 100 iterations
 fieldnames = ["method","discrepancy","maximin",
               "eigen_value","cumulative", "time_to_sol"]
 
-def comparison():
+def comparison(iseed):
     """ Main driver routine that performs comparison of all 3 techniques. """
 
     # Activate info-level logging
@@ -22,20 +22,23 @@ def comparison():
         format='%(asctime)s %(levelname)-8s %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S')
 
-    np.random.seed(31423) # Set numpy random seed (based on date 3.14.23)
     # Loop over all valid dimensions and sample sizes and generate data
     for dimension in dimension_list:
         file_name_csv = ('comparison_dimension_' + str(dimension)+'.csv')
-        with open(file_name_csv, "w") as file_instance:
-            file_instance.write("Dimension 3\n")
+        with open(file_name_csv, "a") as file_instance:
+            file_instance.write(f"Dimension: {dimension}\n")
+            file_instance.write(f"\nSample seed: {iseed}\n\n")
             writer = csv.DictWriter(file_instance, fieldnames=fieldnames)
             writer.writeheader()
         for sample_size in sample_size_list:
             with open(file_name_csv, "a") as file_instance:
                 file_instance.write(f"\nSample size: {sample_size}\n\n")
         
+            np.random.seed(iseed) # Set numpy random seed
             sfd_sample(dimension, sample_size, file_name_csv)
+            np.random.seed(iseed) # Set numpy random seed
             latin_hypercube(dimension, sample_size, file_name_csv)
+            np.random.seed(iseed) # Set numpy random seed
             sobol_seq(dimension, sample_size, file_name_csv)
 
 
@@ -115,5 +118,8 @@ def e_optimality(sample):
 if __name__ == "__main__":
     " If run as main, call driver. "
 
-    comparison()
+    import sys
 
+    for arg in sys.argv[1:]:
+        iseed = int(arg)
+        comparison(iseed)
