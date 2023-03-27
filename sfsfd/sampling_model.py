@@ -1,10 +1,11 @@
 import numpy as np
+import logging
 import scipy.optimize as optimize
 from scipy.spatial.distance import pdist
 from scipy.stats import qmc
 from scipy import fft
-from utils import polar_to_fourier, fourier_to_polar
-
+from .utils import polar_to_fourier, fourier_to_polar
+import csv
 
 class SamplingModel:
     """ This class generates sampling models via optimization of Fourier coefs.
@@ -30,6 +31,7 @@ class SamplingModel:
                  grid_size=3, 
                  file_name='sfd_sample.txt',
                  no_of_iterations_per_perturbation=100,
+                 adaptive_sample_size=0,
                  sample_size=10,
                  weights=None):
         """ Constructor for the SamplingModel class.
@@ -49,6 +51,10 @@ class SamplingModel:
             no_of_iterations_per_perturbation (int, optional): The number
                 of samples that we will take in each iteration of the
                 optimization algorithm. (defaults to 100)
+
+            adaptive_sample_size (int, optional): Increase the sample
+                size every time this many iterations have elapsed.
+                A zero value (default) results in no adaptive increase.
 
             sample_size (int, optional): The size of the sample that we
                 would like to draw from our trained sampler. (defaults to 10)
@@ -78,6 +84,8 @@ class SamplingModel:
         self.no_of_perturbations_performed = 0
         self.no_of_iterations_per_perturbation = \
                                     no_of_iterations_per_perturbation
+        self.iterate = 0
+        self.adaptive_sample_size = adaptive_sample_size
         self.criteria_array_for_all_perturbations = np.array([])
         self.history = []
         if weights is None:
@@ -101,8 +109,16 @@ class SamplingModel:
             #                    f"{self.grid_size}\n")
             #file_instance.write("Total number of fourier coefficients = " +
             #                    f"{self.no_of_coefficients}\n")
-        
-                
+
+        # Log meta-data
+        logging.info("New sample:")
+        logging.info(f"  p dimension: {self.dimension_of_input_space}")
+        logging.info(f"  sample size: {self.sample_size}")
+        logging.info(f"  n grid cell: {self.grid_size}")
+
+        # Tick
+        import time
+        start = time.time()
         # Initialize variables
         initial_sample = self.generate_initial_sample()
         discretized_sample = self.discretization_of_points(
@@ -118,14 +134,31 @@ class SamplingModel:
             coeff_array_adjusted.append(np.real(i))
             coeff_array_adjusted.append(np.imag(i))
         angle_array = fourier_to_polar(coeff_array_adjusted)
+        bb_budget = 400 * self.dimension_of_input_space
         # Optimize with COBYLA solver
         optimal_angles_data= optimize.minimize(
             fun = self.iterative_step, 
             x0 = angle_array, 
-            method = 'COBYLA'
+            method = 'COBYLA',
+            options={'maxiter': bb_budget}
         )
+        # Tock
+        walltime = time.time() - start
         # Write history data to the output file
+        fieldnames=["method","discrepancy","maximin","eigen_value","cumulative","time_to_sol"]
         with open(self.file_name, "a") as file_instance:
+            writer = csv.DictWriter(file_instance, fieldnames=fieldnames)
+            writer.writerow({
+                'method':'Sf-sfd',
+                'discrepancy':self.discrepancy_value_of_sample,
+                'maximin':self.maximin_dist_value_of_sample,
+                'eigen_value':self.min_eigen_value_of_sample,
+                'cumulative':self.criteria_value_of_sample,
+                'time_to_sol':walltime
+            })  
+        '''
+        with open(self.file_name, "a") as file_instance:
+
             #file_instance.write("Number of perturbations = " +
             #                    f"{self.no_of_perturbations_performed}\n")
             file_instance.write("The sample created is: " +
@@ -138,11 +171,13 @@ class SamplingModel:
                                 f"{self.min_eigen_value_of_sample}\n")
             file_instance.write("Maximum maximin distance of the sample is: " +
                                 f"{self.maximin_dist_value_of_sample}\n")
+            file_instance.write(f"Time to solution is: {walltime}\n")
             #file_instance.write("Expected value of discrepancy of the sample:"
             #                    + f" {optimal_angles_data['fun']}\n")
             #file_instance.write("Criteria value for all perturbations: " +
             #            f"{repr(self.criteria_array_for_all_perturbations)}\n")
-        
+        '''
+
     def generate_initial_sample(self):
         """ Step 1: Create an initial sample.
 
@@ -283,8 +318,11 @@ class SamplingModel:
             #                                    criteria_value_data[1])
             #e_optimality_array_for_iterations_in_perturbation.append(
             #                                    criteria_value_data[3])
-        
-        
+        # Update the sample size according to adaptive schedule
+        self.iterate += 1
+        if self.adaptive_sample_size:
+            if self.iterate % self.adaptive_sample_size == 0:
+                self.no_of_iterations_per_perturbation += 1
         criteria_value_for_the_perturbation = \
                     (sum(criteria_array_for_iterations_in_perturbation) /
                      len(criteria_array_for_iterations_in_perturbation))
@@ -310,6 +348,15 @@ class SamplingModel:
         self.min_eigen_value_of_sample = optimal_sample_eigen_value
         self.maximin_dist_value_of_sample = optimal_sample_maximin_value
 
+        logging.info(f"d: {self.dimension_of_input_space}, " +
+                     f"n: {self.sample_size}, " +
+                     f"iter: {self.iterate}")
+        logging.info(f"  sample size: {self.no_of_iterations_per_perturbation}")
+        logging.info(f"  discrep: {optimal_sample_disc_value}")
+        logging.info(f"  e-optim: {optimal_sample_eigen_value}")
+        logging.info(f"  maximin: {optimal_sample_maximin_value}")
+        logging.info(f"  normalized score: {criteria_value_for_the_perturbation}")
+
         return criteria_value_for_the_perturbation
 
     def criteria_result(self, sample):
@@ -328,7 +375,7 @@ class SamplingModel:
 
         '''
 
-        maximindistance = max(pdist(sample)) # By default Euclidean distance
+        maximindistance = min(pdist(sample)) # By default Euclidean distance
         discrepancy = qmc.discrepancy(sample)
         sample_arr = np.array([arr.tolist() for arr in sample])
         t = sample_arr.T # 4x10
@@ -413,7 +460,6 @@ class SamplingModel:
             low=[]
             r = each_sample_point
             for i in range(self.dimension_of_input_space-1):
-                
                 q = r // pow(self.grid_size, d-i-1)
                 r = r % pow(self.grid_size, d-i-1)
                 grid_coordinates.append(q)
