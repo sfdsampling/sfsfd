@@ -14,7 +14,7 @@ adaptive_sample_size = 50 # increase by 1 every 100 iterations
 fieldnames = ["method","discrepancy","maximin",
               "eigen_value","cumulative", "time_to_sol"]
 
-def comparison(iseed):
+def comparison(iseed, file_name_csv):
     """ Main driver routine that performs comparison of all 3 techniques. """
 
     # Activate info-level logging
@@ -24,7 +24,6 @@ def comparison(iseed):
 
     # Loop over all valid dimensions and sample sizes and generate data
     for dimension in dimension_list:
-        file_name_csv = ('comparison_dimension_' + str(dimension)+'.csv')
         with open(file_name_csv, "a") as file_instance:
             file_instance.write(f"Dimension: {dimension}\n")
             file_instance.write(f"\nSample seed: {iseed}\n\n")
@@ -154,6 +153,10 @@ if __name__ == "__main__":
 
     import sys
 
+    fname = "comparison_dimension_3_seed_"
+    for arg in sys.argv[1:]:
+        fname = fname + arg
+    fname = fname + ".csv"
     for arg in sys.argv[1:]:
         iseed = int(arg)
-        comparison(iseed)
+        comparison(iseed, fname)
