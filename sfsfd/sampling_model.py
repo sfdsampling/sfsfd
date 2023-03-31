@@ -300,7 +300,7 @@ class SamplingModel:
         
         #probability_matrix_obtained = self.create_prob_distribution(
         #                                                    fourier_root_cm)
-        probability_matrix_obtained = self.create_prob_distribution_tensorprod(
+        probability_matrix_obtained = self.create_prob_distribution_1D(
                                                             fourier_root_cm)
         # sum of all entries of prob matrix is 1
         criteria_array_for_iterations_in_perturbation = []
@@ -308,9 +308,9 @@ class SamplingModel:
         #maximin_dist_array_for_iterations_in_perturbation = []
         #e_optimality_array_for_iterations_in_perturbation = []
         optimal_sample = []
-        optimal_sample_criteria_value = 1
+        optimal_sample_criteria_value = np.infty
         for iteration in range(self.no_of_iterations_per_perturbation):
-            sample_created = self.sampling_from_distribution(
+            sample_created = self.sampling_from_iid_distribution(
                                                 probability_matrix_obtained)
             criteria_value_data = self.criteria_result(sample_created)
             criteria_value = criteria_value_data[0]
@@ -404,12 +404,12 @@ class SamplingModel:
         #    self.disc_of_optimal_sample = result
         return [result, discrepancy, maximindistance, min_eigenvalue]
 
-    def create_prob_distribution_tensorprod(self, fourier_root_cm):
-        ''' Generate a dD PDF from a 1D list of sqrt-Fourier coeffs.
+    def create_prob_distribution_1D(self, fourier_root_cm):
+        ''' Generate a 1D PDF from a 1D list of sqrt-Fourier coeffs.
 
         Args:
             fourier_root_cm (numpy.ndarray): The sqrt-Fourier coeffs for a 1D
-                PDF, from which we calculate the dD PDF values.
+                PDF, from which we calculate the dD PDF values assuming iid.
 
         Returns:
             numpy.ndarray: PDF values caluclated
@@ -429,13 +429,9 @@ class SamplingModel:
         # Step 1: Find the probability matrix by squaring and taking absolute
         #         value of squareroot FT we obtained
         prob_matrix_1d = abs(pow(prob_ifft_squareroot,2))
-        # Step 2: Take the outer product d times to generate
-        prob_matrix_dD = np.ones(1)
-        for d in range(self.dimension_of_input_space):
-            prob_matrix_dD = np.outer(prob_matrix_1d, prob_matrix_dD).flatten()
         #file_instance.write("The probability matrix obtained is: " +
         #                    "probability_matrix_obtained\n")
-        return prob_matrix_dD
+        return prob_matrix_1d
 
     def create_prob_distribution(self, fourier_root_cm):
         ''' Generate a PDF from a list of sqrt-Fourier coeffs.
@@ -517,6 +513,53 @@ class SamplingModel:
             assert(len(low) == len(grid_coordinates) ==
                    self.dimension_of_input_space)
             grid_map_sample.append(grid_coordinates)
+            sample_point = np.random.uniform(low=low, high=high,
+                                        size=(1,self.dimension_of_input_space))
+            sample_created.append(sample_point[0])
+        return sample_created
+
+    def sampling_from_iid_distribution(self, probability_distribution):
+        """ Generate a sample from a PDF.
+
+        Given a PDF, generate a random sample of self.sample_size points.
+
+        Args:
+            probability_distribution (numpy.ndarray): A 1D distribution
+                representation of the PDF values.
+
+        Returns:
+            numpy.ndarray: A dD sample from probability_distribution, assuming
+            all d dimensions are iid, of size self.sample_size.
+
+        """
+
+        our_sample = np.random.rand(self.sample_size *
+                                    self.dimension_of_input_space)
+        #with open(self.file_name, "a") as file_instance:
+        #    file_instance.write("The sample to be mapped according to our " +
+        #                        f"distribution is: {our_sample}\n")
+        samples_cell_mapping = np.array([])
+        # Step 3: Map the samples to the Random variable
+        for each_sample in our_sample:
+            diff = each_sample
+            i=0
+            while diff >0:
+                diff -= probability_distribution[i]
+                i+=1
+            samples_cell_mapping = np.append(samples_cell_mapping,i-1)
+        samples_cell_mapping = samples_cell_mapping.reshape((self.sample_size,
+                                                  self.dimension_of_input_space))
+        #file_instance.write(samples_cell_mapping)
+        sample_created = []
+        # These coordinates are (x_d, ..., x_1)
+        for each_sample_point in samples_cell_mapping:
+            d = self.dimension_of_input_space
+            high=[]
+            low=[]
+            for i in range(self.dimension_of_input_space):
+                q = each_sample_point[i]
+                low.append(q*self.delta)
+                high.append((q+1)*self.delta)
             sample_point = np.random.uniform(low=low, high=high,
                                         size=(1,self.dimension_of_input_space))
             sample_created.append(sample_point[0])

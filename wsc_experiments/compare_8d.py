@@ -6,8 +6,8 @@ from scipy.spatial.distance import pdist
 import csv
 
 # Problem hyperparams
-dimension_list = np.arange(3,4,1) # 1 levels
-grid_cells_per_dimension = 10 # discretization level of 3
+dimension_list = np.arange(8,9,1) # 1 levels
+grid_cells_per_dimension = 10 # discretization level of 10
 sample_size_list = np.arange(10,101,30) # 4 levels
 no_of_iterations_per_perturbation = 25 # starting number of perturbations
 adaptive_sample_size = 25 # increase by 1 every 25 iterations
@@ -85,7 +85,6 @@ def sfd_sample(dimension, sample_size, file_name_csv):
 
     import time
 
-    grid_cells_per_dimension = 3
     model = sampling_model.SamplingModel( 
         dimension_of_input_space=dimension, 
         grid_size=grid_cells_per_dimension, 
