@@ -119,22 +119,32 @@ class SamplingModel:
         # Tick
         import time
         start = time.time()
-        # Initialize variables
-        initial_sample = self.generate_initial_sample()
-        discretized_sample = self.discretization_of_points(
-                                initial_sample=initial_sample)
-        probability_initial_sample = self.grid_to_cell_mapping_probability(
-                                initial_sample_discretized=discretized_sample)
-        root_probability_initial_sample = np.sqrt(probability_initial_sample)
+        ## Initialize variables
+        #initial_sample = self.generate_initial_sample()
+        #discretized_sample = self.discretization_of_points(
+        #                        initial_sample=initial_sample)
+        #probability_initial_sample = self.grid_to_cell_mapping_probability(
+        #                        initial_sample_discretized=discretized_sample)
+        #root_probability_initial_sample = np.sqrt(probability_initial_sample)
+        #coeff_array = self.fourier_transform(
+        #                        root_prob_mat=root_probability_initial_sample)
+        ## Create an initial angle array (x0) for optimization with COBYLA
+        #coeff_array_adjusted = []
+        #for i in coeff_array:
+        #    coeff_array_adjusted.append(np.real(i))
+        #    coeff_array_adjusted.append(np.imag(i))
+        #angle_array = fourier_to_polar(coeff_array_adjusted)
+        # Start from a uniform distribution
+        root_probability_initial_sample = [np.sqrt(1.0 / self.grid_size)
+                                           for i in range(self.grid_size)] 
         coeff_array = self.fourier_transform(
                                 root_prob_mat=root_probability_initial_sample)
-        # Create an initial angle array (x0) for optimization with COBYLA
         coeff_array_adjusted = []
         for i in coeff_array:
             coeff_array_adjusted.append(np.real(i))
             coeff_array_adjusted.append(np.imag(i))
         angle_array = fourier_to_polar(coeff_array_adjusted)
-        bb_budget = 400 * self.dimension_of_input_space
+        bb_budget = 400
         # Optimize with COBYLA solver
         optimal_angles_data= optimize.minimize(
             fun = self.iterative_step, 
@@ -288,7 +298,9 @@ class SamplingModel:
             fourier_root_cm.append([complex(fourier_root_cm_flat[2*i],
                                             fourier_root_cm_flat[(2*i)+1])])
         
-        probability_matrix_obtained = self.create_prob_distribution(
+        #probability_matrix_obtained = self.create_prob_distribution(
+        #                                                    fourier_root_cm)
+        probability_matrix_obtained = self.create_prob_distribution_tensorprod(
                                                             fourier_root_cm)
         # sum of all entries of prob matrix is 1
         criteria_array_for_iterations_in_perturbation = []
@@ -391,6 +403,39 @@ class SamplingModel:
         #    self.optimal_sample = sample
         #    self.disc_of_optimal_sample = result
         return [result, discrepancy, maximindistance, min_eigenvalue]
+
+    def create_prob_distribution_tensorprod(self, fourier_root_cm):
+        ''' Generate a dD PDF from a 1D list of sqrt-Fourier coeffs.
+
+        Args:
+            fourier_root_cm (numpy.ndarray): The sqrt-Fourier coeffs for a 1D
+                PDF, from which we calculate the dD PDF values.
+
+        Returns:
+            numpy.ndarray: PDF values caluclated
+
+        '''
+
+        prob_ifft_squareroot = np.array(fft.ifft(fourier_root_cm))
+        '''
+        sum_l2_prob = 0
+        for i in prob_ifft_squareroot:
+            sum_l2_prob+= pow(abs(i), 2)
+        '''
+        ## We can assert this
+        #file_instance.write(f"The sum of probabilities is: {sum_l2_prob}\n")
+        # Sampling to find the expected value of discrepancy
+        # There are total 6 steps
+        # Step 1: Find the probability matrix by squaring and taking absolute
+        #         value of squareroot FT we obtained
+        prob_matrix_1d = abs(pow(prob_ifft_squareroot,2))
+        # Step 2: Take the outer product d times to generate
+        prob_matrix_dD = np.ones(1)
+        for d in range(self.dimension_of_input_space):
+            prob_matrix_dD = np.outer(prob_matrix_1d, prob_matrix_dD).flatten()
+        #file_instance.write("The probability matrix obtained is: " +
+        #                    "probability_matrix_obtained\n")
+        return prob_matrix_dD
 
     def create_prob_distribution(self, fourier_root_cm):
         ''' Generate a PDF from a list of sqrt-Fourier coeffs.
