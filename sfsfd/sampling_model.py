@@ -82,6 +82,10 @@ class SamplingModel:
         self.discrepancy_value_of_sample = 1
         self.min_eigen_value_of_sample = 0
         self.maximin_dist_value_of_sample = 1
+        self.final_exp_criteria = 1
+        self.final_exp_disc = 1
+        self.final_exp_e_optimality = 0
+        self.final_exp_maximin = 1
         self.no_of_perturbations_performed = 0
         self.no_of_iterations_per_perturbation = \
                                     no_of_iterations_per_perturbation
@@ -359,17 +363,19 @@ class SamplingModel:
         self.criteria_array_for_all_perturbations = np.append(
                                 self.criteria_array_for_all_perturbations,
                                 criteria_value_for_the_perturbation)
-        
-        self.sample_obtained = optimal_sample
-        self.criteria_value_of_sample = optimal_sample_criteria_value
-        self.discrepancy_value_of_sample = optimal_sample_disc_value
-        self.min_eigen_value_of_sample = optimal_sample_eigen_value
-        self.maximin_dist_value_of_sample = optimal_sample_maximin_value
 
-        self.final_exp_criteria = criteria_value_for_the_perturbation
-        self.final_exp_disc = disc_value_for_the_perturbation
-        self.final_exp_maximin = maximin_value_for_the_perturbation
-        self.final_exp_e_optimality = eigenvalue_value_for_the_perturbation
+        # If this is an improvement, record best and average-case
+        if criteria_value_for_the_perturbation < self.final_exp_criteria:
+            self.sample_obtained = optimal_sample
+            self.criteria_value_of_sample = optimal_sample_criteria_value
+            self.discrepancy_value_of_sample = optimal_sample_disc_value
+            self.min_eigen_value_of_sample = optimal_sample_eigen_value
+            self.maximin_dist_value_of_sample = optimal_sample_maximin_value
+
+            self.final_exp_criteria = criteria_value_for_the_perturbation
+            self.final_exp_disc = disc_value_for_the_perturbation
+            self.final_exp_maximin = maximin_value_for_the_perturbation
+            self.final_exp_e_optimality = eigenvalue_value_for_the_perturbation
 
         logging.info(f"d: {self.dimension_of_input_space}, " +
                      f"n: {self.sample_size}, " +

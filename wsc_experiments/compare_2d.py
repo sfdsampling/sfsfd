@@ -31,10 +31,6 @@ def comparison(iseed, file_name_csv):
     # Loop over all valid dimensions and sample sizes and generate data
     for dimension in dimension_list:
 
-        # start with 25d evals per iteration and +1 every 5 sqrt(d)
-        no_of_iterations_per_perturbation = 25 * dimension
-        adaptive_sample_size = 5 * np.sqrt(dimension)
-
         with open(file_name_csv, "a") as file_instance:
             file_instance.write(f"Dimension: {dimension}\n")
             file_instance.write(f"\nSample seed: {iseed}\n\n")
@@ -66,7 +62,7 @@ def random_sample(dimension, sample_size, file_name_csv):
     avg_e_optimality_random = e_optimality(best_sample)
     avg_weighted_criteria = np.dot(np.array([avg_dis_random, -avg_maximin_random, -avg_e_optimality_random]), weights)
 
-    for i in range(0, 50*dimension-1):
+    for i in range(0, 35):
         sample = np.random.random_sample((sample_size, dimension))
         dis_random = qmc.discrepancy(sample)
         maximin_random = maximindist(sample)

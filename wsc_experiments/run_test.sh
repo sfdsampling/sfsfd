@@ -17,12 +17,12 @@
 cd .. && export PYTHONPATH=$PYTHONPATH:`pwd` && cd wsc_experiments
 
 # Run the tests with 10 random seeds ( 0--9 )
-python3 compare_2d.py 0
-python3 compare_3d.py 0
-python3 compare_4d.py 0
-python3 compare_5d.py 0
-python3 compare_6d.py 0
-python3 compare_7d.py 0
-python3 compare_8d.py 0
-python3 compare_9d.py 0
-python3 compare_10d.py 0
+python3 compare_dD.py 2 0
+python3 compare_dD.py 3 0
+python3 compare_dD.py 4 0
+python3 compare_dD.py 5 0
+python3 compare_dD.py 6 0
+python3 compare_dD.py 7 0
+python3 compare_dD.py 8 0
+python3 compare_dD.py 9 0
+python3 compare_dD.py 10 0
