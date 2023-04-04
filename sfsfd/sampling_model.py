@@ -33,6 +33,7 @@ class SamplingModel:
                  no_of_iterations_per_perturbation=100,
                  adaptive_sample_size=0,
                  sample_size=10,
+                 bb_budget=None,
                  weights=None):
         """ Constructor for the SamplingModel class.
 
@@ -92,6 +93,10 @@ class SamplingModel:
             self.weights = np.ones(3) / 3.0
         else:
             self.weights = weights
+        if bb_budget is None:
+            self.bb_budget = 100 * self.grid_size
+        else:
+            self.bb_budget = bb_budget
 
     def initialize(self):
         """ Initialize/reset and re-train the sampler using COBYLA.
@@ -135,8 +140,8 @@ class SamplingModel:
         #    coeff_array_adjusted.append(np.imag(i))
         #angle_array = fourier_to_polar(coeff_array_adjusted)
         # Start from a uniform distribution
-        root_probability_initial_sample = [np.sqrt(1.0 / self.grid_size)
-                                           for i in range(self.grid_size)] 
+        root_probability_initial_sample = np.array([np.sqrt(1.0 / self.grid_size)
+                                           for i in range(self.grid_size)])
         coeff_array = self.fourier_transform(
                                 root_prob_mat=root_probability_initial_sample)
         coeff_array_adjusted = []
@@ -144,13 +149,12 @@ class SamplingModel:
             coeff_array_adjusted.append(np.real(i))
             coeff_array_adjusted.append(np.imag(i))
         angle_array = fourier_to_polar(coeff_array_adjusted)
-        bb_budget = 400
         # Optimize with COBYLA solver
         optimal_angles_data= optimize.minimize(
             fun = self.iterative_step, 
             x0 = angle_array, 
             method = 'COBYLA',
-            options={'maxiter': bb_budget}
+            options={'maxiter': self.bb_budget}
         )
         # Tock
         walltime = time.time() - start
@@ -272,8 +276,8 @@ class SamplingModel:
         """
 
         cm_root = fft.fft(root_prob_mat)
-        numpy_cm_root = np.array(cm_root)
-        numpy_cm_root = numpy_cm_root/np.sqrt(self.no_of_coefficients)
+        numpy_cm_root = np.array(cm_root) / np.sqrt(self.grid_size)
+        #numpy_cm_root = numpy_cm_root / np.sqrt(self.no_of_coefficients)
         return numpy_cm_root
 
     def iterative_step(self, angle_array):
@@ -295,20 +299,21 @@ class SamplingModel:
         index = int((len(fourier_root_cm_flat))/2)
         fourier_root_cm = []
         for i in range(index):
-            fourier_root_cm.append([complex(fourier_root_cm_flat[2*i],
-                                            fourier_root_cm_flat[(2*i)+1])])
-        
+            fourier_root_cm.append(complex(fourier_root_cm_flat[2*i],
+                                           fourier_root_cm_flat[(2*i)+1]))
+        fourier_root_cm = np.asarray(fourier_root_cm)
         #probability_matrix_obtained = self.create_prob_distribution(
         #                                                    fourier_root_cm)
         probability_matrix_obtained = self.create_prob_distribution_1D(
                                                             fourier_root_cm)
         # sum of all entries of prob matrix is 1
         criteria_array_for_iterations_in_perturbation = []
-        #discrepancy_array_for_iterations_in_perturbation = []
-        #maximin_dist_array_for_iterations_in_perturbation = []
-        #e_optimality_array_for_iterations_in_perturbation = []
+        discrepancy_array_for_iterations_in_perturbation = []
+        maximin_dist_array_for_iterations_in_perturbation = []
+        e_optimality_array_for_iterations_in_perturbation = []
         optimal_sample = []
         optimal_sample_criteria_value = np.infty
+
         for iteration in range(self.no_of_iterations_per_perturbation):
             sample_created = self.sampling_from_iid_distribution(
                                                 probability_matrix_obtained)
@@ -323,31 +328,32 @@ class SamplingModel:
                 optimal_sample_eigen_value = criteria_value_data[3]
             
             criteria_array_for_iterations_in_perturbation.append(
-                                                                criteria_value)
-            #maximin_dist_array_for_iterations_in_perturbation.append(
-            #                                    criteria_value_data[2])
-            #discrepancy_array_for_iterations_in_perturbation.append(
-            #                                    criteria_value_data[1])
-            #e_optimality_array_for_iterations_in_perturbation.append(
-            #                                    criteria_value_data[3])
+                                                criteria_value)
+            maximin_dist_array_for_iterations_in_perturbation.append(
+                                                criteria_value_data[2])
+            discrepancy_array_for_iterations_in_perturbation.append(
+                                                criteria_value_data[1])
+            e_optimality_array_for_iterations_in_perturbation.append(
+                                                criteria_value_data[3])
         # Update the sample size according to adaptive schedule
         self.iterate += 1
         if self.adaptive_sample_size:
             if self.iterate % self.adaptive_sample_size == 0:
                 self.no_of_iterations_per_perturbation += 1
+
+        # Calcualte expected values
         criteria_value_for_the_perturbation = \
                     (sum(criteria_array_for_iterations_in_perturbation) /
                      len(criteria_array_for_iterations_in_perturbation))
-        
-        #disc_value_for_the_perturbation = \
-        #        (sum(discrepancy_array_for_iterations_in_perturbation) /
-        #        len(discrepancy_array_for_iterations_in_perturbation))
-        #maximin_value_for_the_perturbation = \
-        #        (sum(maximin_dist_array_for_iterations_in_perturbation) /
-        #        len(maximin_dist_array_for_iterations_in_perturbation))
-        #eigenvalue_value_for_the_perturbation = \
-        #        (sum(e_optimality_array_for_iterations_in_perturbation) /
-        #        len(e_optimality_array_for_iterations_in_perturbation))
+        disc_value_for_the_perturbation = \
+                (sum(discrepancy_array_for_iterations_in_perturbation) /
+                len(discrepancy_array_for_iterations_in_perturbation))
+        maximin_value_for_the_perturbation = \
+                (sum(maximin_dist_array_for_iterations_in_perturbation) /
+                len(maximin_dist_array_for_iterations_in_perturbation))
+        eigenvalue_value_for_the_perturbation = \
+                (sum(e_optimality_array_for_iterations_in_perturbation) /
+                len(e_optimality_array_for_iterations_in_perturbation))
         
         
         self.criteria_array_for_all_perturbations = np.append(
@@ -359,6 +365,11 @@ class SamplingModel:
         self.discrepancy_value_of_sample = optimal_sample_disc_value
         self.min_eigen_value_of_sample = optimal_sample_eigen_value
         self.maximin_dist_value_of_sample = optimal_sample_maximin_value
+
+        self.final_exp_criteria = criteria_value_for_the_perturbation
+        self.final_exp_disc = disc_value_for_the_perturbation
+        self.final_exp_maximin = maximin_value_for_the_perturbation
+        self.final_exp_e_optimality = eigenvalue_value_for_the_perturbation
 
         logging.info(f"d: {self.dimension_of_input_space}, " +
                      f"n: {self.sample_size}, " +
@@ -387,10 +398,9 @@ class SamplingModel:
 
         '''
 
-        maximindistance = min(pdist(sample)) # By default Euclidean distance
         discrepancy = qmc.discrepancy(sample)
-        sample_arr = np.array([arr.tolist() for arr in sample])
-        t = sample_arr.T # 4x10
+        maximindistance = np.min(pdist(sample)) # By default Euclidean distance
+        t = sample.T # 4x10
         u,s,v = np.linalg.svd(t)
         min_eigenvalue = np.min(s)
         # Record all 3 samples in the history array
@@ -416,7 +426,7 @@ class SamplingModel:
 
         '''
 
-        prob_ifft_squareroot = np.array(fft.ifft(fourier_root_cm))
+        prob_ifft_squareroot = fft.ifft(fourier_root_cm * np.sqrt(self.grid_size))
         '''
         sum_l2_prob = 0
         for i in prob_ifft_squareroot:
@@ -428,7 +438,9 @@ class SamplingModel:
         # There are total 6 steps
         # Step 1: Find the probability matrix by squaring and taking absolute
         #         value of squareroot FT we obtained
-        prob_matrix_1d = abs(pow(prob_ifft_squareroot,2))
+        # For numerical reasons, take the real part and re-normalize by sum
+        prob_matrix_1d = pow(np.abs(prob_ifft_squareroot),2)
+        prob_matrix_1d = prob_matrix_1d / np.sum(prob_matrix_1d)
         #file_instance.write("The probability matrix obtained is: " +
         #                    "probability_matrix_obtained\n")
         return prob_matrix_1d
@@ -546,11 +558,11 @@ class SamplingModel:
             while diff >0:
                 diff -= probability_distribution[i]
                 i+=1
-            samples_cell_mapping = np.append(samples_cell_mapping,i-1)
+            samples_cell_mapping = np.append(samples_cell_mapping,np.array([i-1]))
         samples_cell_mapping = samples_cell_mapping.reshape((self.sample_size,
                                                   self.dimension_of_input_space))
         #file_instance.write(samples_cell_mapping)
-        sample_created = []
+        sample_created = None
         # These coordinates are (x_d, ..., x_1)
         for each_sample_point in samples_cell_mapping:
             d = self.dimension_of_input_space
@@ -562,5 +574,8 @@ class SamplingModel:
                 high.append((q+1)*self.delta)
             sample_point = np.random.uniform(low=low, high=high,
                                         size=(1,self.dimension_of_input_space))
-            sample_created.append(sample_point[0])
+            if sample_created is None:
+                sample_created = sample_point.copy()
+            else:
+                sample_created = np.append(sample_created, sample_point, axis=0)
         return sample_created
