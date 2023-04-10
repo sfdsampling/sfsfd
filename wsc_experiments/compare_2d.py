@@ -15,10 +15,6 @@ fieldnames = ["method","discrepancy","maximin",
               "eigen_value","cumulative", "time_to_sol"]
 no_of_iterations_per_perturbation = 25 # starting number of perturbations
 adaptive_sample_size = 25 # increase by 1 every this many iters
-weights = np.ones(3)
-weights[1] = 0.1
-weights[2] = 0.01
-weights = weights / np.sum(weights)
 
 def comparison(iseed, file_name_csv):
     """ Main driver routine that performs comparison of all 3 techniques. """
@@ -30,6 +26,10 @@ def comparison(iseed, file_name_csv):
 
     # Loop over all valid dimensions and sample sizes and generate data
     for dimension in dimension_list:
+
+        # start with 25d evals per iteration and +1 every 5 sqrt(d)
+        no_of_iterations_per_perturbation = 25 * dimension
+        adaptive_sample_size = int(5 * np.sqrt(dimension))
 
         with open(file_name_csv, "a") as file_instance:
             file_instance.write(f"Dimension: {dimension}\n")
@@ -50,24 +50,31 @@ def comparison(iseed, file_name_csv):
             random_sample(dimension, sample_size, file_name_csv)
 
 def random_sample(dimension, sample_size, file_name_csv):
+    b1 = np.sqrt(float(dimension))
+    b2 = float(dimension) * np.sqrt(float(sample_size))
+
     # Record best performance
     best_sample = np.random.random_sample((sample_size, dimension))
     best_dis_random = qmc.discrepancy(best_sample)
     best_maximin_random = maximindist(best_sample)
     best_e_optimality_random = e_optimality(best_sample)
-    best_weighted_criteria = np.dot(np.array([best_dis_random, -best_maximin_random, -best_e_optimality_random]), weights)
+    best_weighted_criteria = (best_dis_random * (b1 - best_maximin_random)
+                              * (b2 - best_e_optimality_random))
     # Record average performance
     avg_dis_random = qmc.discrepancy(best_sample)
     avg_maximin_random = maximindist(best_sample)
     avg_e_optimality_random = e_optimality(best_sample)
-    avg_weighted_criteria = np.dot(np.array([avg_dis_random, -avg_maximin_random, -avg_e_optimality_random]), weights)
+    avg_weighted_criteria = (avg_dis_random *
+                             (b1 - avg_maximin_random) *
+                             (b2 - avg_e_optimality_random))
 
-    for i in range(0, 35):
+    for i in range(0, 50*dimension-1):
         sample = np.random.random_sample((sample_size, dimension))
         dis_random = qmc.discrepancy(sample)
         maximin_random = maximindist(sample)
         e_optimality_random = e_optimality(sample)
-        weighted_criteria = np.dot(np.array([dis_random, -maximin_random, -e_optimality_random]), weights)
+        weighted_criteria = (dis_random * (b1 - maximin_random) *
+                             (b2 - e_optimality_random))
         # Calculate moving average
         avg_weighted_criteria = (avg_weighted_criteria * (i+1)
                                  + weighted_criteria) / (i + 2)
@@ -115,8 +122,7 @@ def sfd_sample(dimension, sample_size, file_name_csv):
         file_name=file_name_csv,
         no_of_iterations_per_perturbation = no_of_iterations_per_perturbation,
         adaptive_sample_size = adaptive_sample_size,
-        sample_size = sample_size,
-        weights = weights
+        sample_size = sample_size
         )
     start = time.time()
     # Train the model and save results to file_name_csv
@@ -135,13 +141,17 @@ def sfd_sample(dimension, sample_size, file_name_csv):
 ### Other sampling methods from scipy.qmc ###
               
 def latin_hypercube(dimension, sample_size, file_name_csv):
+    b1 = np.sqrt(float(dimension))
+    b2 = float(dimension) * np.sqrt(float(sample_size))
+
     sampler = qmc.LatinHypercube(dimension)
     sample = sampler.random(sample_size)
             
     dis_lhs = qmc.discrepancy(sample)
     maximin_lhs = maximindist(sample)
     e_optimality_lhs = e_optimality(sample)
-    weighted_criteria_lhs = np.dot(np.array([dis_lhs, - maximin_lhs, - e_optimality_lhs]), weights)
+    weighted_criteria_lhs = (dis_lhs * (b1 - maximin_lhs) *
+                             (b2 - e_optimality_lhs))
     with open(file_name_csv, "a") as file_instance:
         
         writer = csv.DictWriter(file_instance, fieldnames=fieldnames)
@@ -154,12 +164,16 @@ def latin_hypercube(dimension, sample_size, file_name_csv):
         })       
 
 def sobol_seq(dimension, sample_size, file_name_csv):
+    b1 = np.sqrt(float(dimension))
+    b2 = float(dimension) * np.sqrt(float(sample_size))
+
     sampler = qmc.Sobol(dimension, scramble=False)
     sample = sampler.random(sample_size)
     dis_sobol = qmc.discrepancy(sample)
     maximin_sobol = maximindist(sample)
     e_optimality_sobol = e_optimality(sample)
-    weighted_criteria_sobol = np.dot(np.array([dis_sobol, - maximin_sobol, - e_optimality_sobol]), weights)
+    weighted_criteria_sobol = (dis_sobol * (b1 - maximin_sobol) *
+                               (b2 - e_optimality_sobol))
     with open(file_name_csv, "a") as file_instance:
         
         writer = csv.DictWriter(file_instance, fieldnames=fieldnames)
@@ -179,8 +193,7 @@ def maximindist(sample):
 
 def e_optimality(sample):
     sample_arr = np.array([arr.tolist() for arr in sample])
-    t = sample_arr.T # 4x10
-    u,s,v = np.linalg.svd(t)
+    s = np.linalg.svd(sample_arr, compute_uv=False)
     min_eigenvalue = np.min(s)
     return min_eigenvalue
 

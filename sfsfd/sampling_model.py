@@ -78,18 +78,22 @@ class SamplingModel:
         self.optimal_sample = np.array([])
         self.sample_size = sample_size
         self.sample_obtained = []
-        self.criteria_value_of_sample = 1
-        self.discrepancy_value_of_sample = 1
-        self.min_eigen_value_of_sample = 0
-        self.maximin_dist_value_of_sample = 1
-        self.final_exp_criteria = 1
-        self.final_exp_disc = 1
-        self.final_exp_e_optimality = 0
-        self.final_exp_maximin = 1
-        self.no_of_perturbations_performed = 0
+        self.criteria_value_of_sample = (float(self.dimension_of_input_space) *
+                                         float(self.dimension_of_input_space) *
+                                         np.sqrt(float(self.sample_size)))
+        self.discrepancy_value_of_sample = 1.0
+        self.min_eigen_value_of_sample = float(self.dimension_of_input_space)
+        self.maximin_dist_value_of_sample = float(self.dimension_of_input_space) * np.sqrt(float(self.sample_size))
+        self.final_exp_criteria = (float(self.dimension_of_input_space) *
+                                   float(self.dimension_of_input_space) *
+                                   np.sqrt(float(self.sample_size)))
+        self.final_exp_disc = 1.0
+        self.final_exp_e_optimality = float(self.dimension_of_input_space)
+        self.final_exp_maximin = float(self.dimension_of_input_space) * np.sqrt(float(self.sample_size))
+        self.no_of_perturbations_performed = 0.0
         self.no_of_iterations_per_perturbation = \
                                     no_of_iterations_per_perturbation
-        self.iterate = 0
+        self.iterate = 0.0
         self.adaptive_sample_size = adaptive_sample_size
         self.criteria_array_for_all_perturbations = np.array([])
         self.history = []
@@ -406,15 +410,16 @@ class SamplingModel:
 
         discrepancy = qmc.discrepancy(sample)
         maximindistance = np.min(pdist(sample)) # By default Euclidean distance
-        t = sample.T # 4x10
-        u,s,v = np.linalg.svd(t)
+        #t = sample.T # 4x10
+        s = np.linalg.svd(sample, compute_uv=False)
         min_eigenvalue = np.min(s)
         # Record all 3 samples in the history array
         self.history.append([discrepancy, maximindistance, min_eigenvalue])
         # Calculate weighted average
-        result = np.dot(self.weights,
-                        np.array([discrepancy, -maximindistance,
-                                  -min_eigenvalue]))
+        b1 = np.sqrt(float(self.dimension_of_input_space))
+        b2 = float(self.dimension_of_input_space) * np.sqrt(float(self.sample_size))
+        result = np.prod(np.array([discrepancy, b1 - maximindistance,
+                                   b2 - min_eigenvalue]))
         #if result < self.disc_of_optimal_sample:
         #    self.optimal_sample = sample
         #    self.disc_of_optimal_sample = result
