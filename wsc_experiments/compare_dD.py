@@ -9,9 +9,9 @@ import sys
 DIMENSION = int(sys.argv[1])
 
 # Problem hyperparams
-dimension_list = np.arange(DIMENSION,DIMENSION+1,1) # 2 levels
+dimension_list = np.arange(DIMENSION,DIMENSION+1,1) # 1 levels
 grid_cells_per_dimension = 10 # discretization level of 10
-sample_size_list = np.arange(10,101,30) # 4 levels
+sample_size_list = np.arange(50,501,50) # 10 levels
 fieldnames = ["method","discrepancy","maximin",
               "eigen_value","cumulative", "time_to_sol"]
 no_of_iterations_per_perturbation = 25 # starting number of perturbations
