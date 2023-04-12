@@ -23,7 +23,3 @@ python3 compare_dD.py 15  0
 python3 compare_dD.py 20  0
 python3 compare_dD.py 25  0
 python3 compare_dD.py 30  0
-python3 compare_dD.py 35  0
-python3 compare_dD.py 40  0
-python3 compare_dD.py 45  0
-python3 compare_dD.py 50  0

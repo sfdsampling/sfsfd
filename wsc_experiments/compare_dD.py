@@ -11,11 +11,11 @@ DIMENSION = int(sys.argv[1])
 # Problem hyperparams
 dimension_list = np.arange(DIMENSION,DIMENSION+1,1) # 1 levels
 grid_cells_per_dimension = 10 # discretization level of 10
-sample_size_list = np.arange(50,501,50) # 10 levels
+sample_size_list = np.arange(100,501,100) # 5 levels
 fieldnames = ["method","discrepancy","maximin",
               "eigen_value","cumulative", "time_to_sol"]
-no_of_iterations_per_perturbation = 25 # starting number of perturbations
-adaptive_sample_size = 25 # increase by 1 every this many iters
+no_of_iterations_per_perturbation = 50 # starting number of perturbations
+adaptive_sample_size = grid_cells_per_dimension # increase by 1 every 10 iters
 
 def comparison(iseed, file_name_csv):
     """ Main driver routine that performs comparison of all 3 techniques. """
@@ -27,10 +27,6 @@ def comparison(iseed, file_name_csv):
 
     # Loop over all valid dimensions and sample sizes and generate data
     for dimension in dimension_list:
-
-        # start with 25d evals per iteration and +1 every 5 sqrt(d)
-        no_of_iterations_per_perturbation = 25 * dimension
-        adaptive_sample_size = int(5 * np.sqrt(dimension))
 
         with open(file_name_csv, "a") as file_instance:
             file_instance.write(f"Dimension: {dimension}\n")
@@ -69,7 +65,7 @@ def random_sample(dimension, sample_size, file_name_csv):
                              (b1 - avg_maximin_random) *
                              (b2 - avg_e_optimality_random))
 
-    for i in range(0, 50*dimension-1):
+    for i in range(99):
         sample = np.random.random_sample((sample_size, dimension))
         dis_random = qmc.discrepancy(sample)
         maximin_random = maximindist(sample)
