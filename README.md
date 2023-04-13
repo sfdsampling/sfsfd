@@ -80,4 +80,4 @@ model.initialize()
 
 For questions, the primary author is:
 
- - Manisha Garg (email here)
+ - Manisha Garg (manisha8@illinois.edu)
