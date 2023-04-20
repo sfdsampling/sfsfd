@@ -119,7 +119,8 @@ def sfd_sample(dimension, sample_size, file_name_csv):
         file_name=file_name_csv,
         no_of_iterations_per_perturbation = no_of_iterations_per_perturbation,
         adaptive_sample_size = adaptive_sample_size,
-        sample_size = sample_size
+        sample_size = sample_size,
+        weights = np.eye(3)[0]
         )
     start = time.time()
     # Train the model and save results to file_name_csv

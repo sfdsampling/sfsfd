@@ -98,7 +98,7 @@ class SamplingModel:
         self.criteria_array_for_all_perturbations = np.array([])
         self.history = []
         if weights is None:
-            self.weights = np.ones(3) / 3.0
+            self.weights = np.ones(3)
         else:
             self.weights = weights
         if bb_budget is None:
@@ -408,18 +408,27 @@ class SamplingModel:
 
         '''
 
-        discrepancy = qmc.discrepancy(sample)
-        maximindistance = np.min(pdist(sample)) # By default Euclidean distance
-        #t = sample.T # 4x10
-        s = np.linalg.svd(sample, compute_uv=False)
-        min_eigenvalue = np.min(s)
+        if self.weights[0] > 0:
+            discrepancy = qmc.discrepancy(sample)
+        else:
+            discrepancy = 1.0
+        if self.weights[1] > 0:
+            maximindistance = np.min(pdist(sample)) # By default Euclidean distance
+        else:
+            maximindistance = 0.0
+        if self.weights[2] > 0:
+            s = np.linalg.svd(sample, compute_uv=False)
+            min_eigenvalue = np.min(s)
+        else:
+            min_eigenvalue = 0.0
         # Record all 3 samples in the history array
         self.history.append([discrepancy, maximindistance, min_eigenvalue])
         # Calculate weighted average
         b1 = np.sqrt(float(self.dimension_of_input_space))
         b2 = float(self.dimension_of_input_space) * np.sqrt(float(self.sample_size))
-        result = np.prod(np.array([discrepancy, b1 - maximindistance,
-                                   b2 - min_eigenvalue]))
+        result = np.prod(np.array([discrepancy**self.weights[0],
+                                   (b1 - maximindistance) ** self.weights[1],
+                                   (b2 - min_eigenvalue) ** self.weights[2]]))
         #if result < self.disc_of_optimal_sample:
         #    self.optimal_sample = sample
         #    self.disc_of_optimal_sample = result
