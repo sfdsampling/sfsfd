@@ -1,6 +1,8 @@
 # SF-SFD: Stochastic training of Fourier coefficients for Space-Filling Designs
 
-TODO: General description of package
+The method SF-SFD can be used to generate space-filling design at several common problem dimensions. It is used for tuning distribution functions in high-dimensional spaces in order to prevent concentration of measure for a finite sample. For more details about how to generate a sample, please read the section 'Basic Usage'. 
+
+This technique directly addresses the issue of measure concentration and scales better to large dimensions than existing heuristic techniques such as Latin hypercube samples and low-discrepancy sequences such as the randomized Sobol sequence.
 
 ## Dependencies
 
@@ -75,9 +77,11 @@ model = SamplingModel(
 # Train the model and save results to file_name
 model.initialize()
 ```
+## Experimental Results
+
 
 ## Support
 
 For questions, the primary author is:
 
- - Manisha Garg (email here)
+ - Manisha Garg (manisha8@illinois.edu)
