@@ -154,8 +154,7 @@ class SamplingModel:
             })  
         
     def generate_initial_sample(self):
-        """ This is the first step.
-            Create an initial sample.
+        """ Create an initial sample.
 
         Returns:
 
