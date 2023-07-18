@@ -33,6 +33,7 @@ class SamplingModel:
                  no_of_iterations_per_perturbation=100,
                  adaptive_sample_size=0,
                  sample_size=10,
+                 bb_budget=None,
                  weights=None):
         """ Constructor for the SamplingModel class.
 
@@ -77,21 +78,33 @@ class SamplingModel:
         self.optimal_sample = np.array([])
         self.sample_size = sample_size
         self.sample_obtained = []
-        self.criteria_value_of_sample = 1
-        self.discrepancy_value_of_sample = 1
-        self.min_eigen_value_of_sample = 0
-        self.maximin_dist_value_of_sample = 1
-        self.no_of_perturbations_performed = 0
+        self.criteria_value_of_sample = (float(self.dimension_of_input_space) *
+                                         float(self.dimension_of_input_space) *
+                                         np.sqrt(float(self.sample_size)))
+        self.discrepancy_value_of_sample = 1.0
+        self.min_eigen_value_of_sample = float(self.dimension_of_input_space)
+        self.maximin_dist_value_of_sample = float(self.dimension_of_input_space) * np.sqrt(float(self.sample_size))
+        self.final_exp_criteria = (float(self.dimension_of_input_space) *
+                                   float(self.dimension_of_input_space) *
+                                   np.sqrt(float(self.sample_size)))
+        self.final_exp_disc = 1.0
+        self.final_exp_e_optimality = float(self.dimension_of_input_space)
+        self.final_exp_maximin = float(self.dimension_of_input_space) * np.sqrt(float(self.sample_size))
+        self.no_of_perturbations_performed = 0.0
         self.no_of_iterations_per_perturbation = \
                                     no_of_iterations_per_perturbation
-        self.iterate = 0
+        self.iterate = 0.0
         self.adaptive_sample_size = adaptive_sample_size
         self.criteria_array_for_all_perturbations = np.array([])
         self.history = []
         if weights is None:
-            self.weights = np.ones(3) / 3.0
+            self.weights = np.ones(3)
         else:
             self.weights = weights
+        if bb_budget is None:
+            self.bb_budget = 100 * self.grid_size
+        else:
+            self.bb_budget = bb_budget
 
     def initialize(self):
         """ Initialize/reset and re-train the sampler using COBYLA.
@@ -105,11 +118,7 @@ class SamplingModel:
         with open(self.file_name, "a") as file_instance:
             file_instance.write("\nThe dimension of the input space is: " +
                                 f"{self.dimension_of_input_space}\n")
-            #file_instance.write("Number of grid cells per dimension = " +
-            #                    f"{self.grid_size}\n")
-            #file_instance.write("Total number of fourier coefficients = " +
-            #                    f"{self.no_of_coefficients}\n")
-
+            
         # Log meta-data
         logging.info("New sample:")
         logging.info(f"  p dimension: {self.dimension_of_input_space}")
@@ -119,28 +128,24 @@ class SamplingModel:
         # Tick
         import time
         start = time.time()
-        # Initialize variables
-        initial_sample = self.generate_initial_sample()
-        discretized_sample = self.discretization_of_points(
-                                initial_sample=initial_sample)
-        probability_initial_sample = self.grid_to_cell_mapping_probability(
-                                initial_sample_discretized=discretized_sample)
-        root_probability_initial_sample = np.sqrt(probability_initial_sample)
+        ## Initialize variables
+        
+        # Start from a uniform distribution
+        root_probability_initial_sample = np.array([np.sqrt(1.0 / self.grid_size)
+                                           for i in range(self.grid_size)])
         coeff_array = self.fourier_transform(
                                 root_prob_mat=root_probability_initial_sample)
-        # Create an initial angle array (x0) for optimization with COBYLA
         coeff_array_adjusted = []
         for i in coeff_array:
             coeff_array_adjusted.append(np.real(i))
             coeff_array_adjusted.append(np.imag(i))
         angle_array = fourier_to_polar(coeff_array_adjusted)
-        bb_budget = 400 * self.dimension_of_input_space
         # Optimize with COBYLA solver
         optimal_angles_data= optimize.minimize(
             fun = self.iterative_step, 
             x0 = angle_array, 
             method = 'COBYLA',
-            options={'maxiter': bb_budget}
+            options={'maxiter': self.bb_budget}
         )
         # Tock
         walltime = time.time() - start
@@ -155,31 +160,10 @@ class SamplingModel:
                 'eigen_value':self.min_eigen_value_of_sample,
                 'cumulative':self.criteria_value_of_sample,
                 'time_to_sol':walltime
-            })  
-        '''
-        with open(self.file_name, "a") as file_instance:
-
-            #file_instance.write("Number of perturbations = " +
-            #                    f"{self.no_of_perturbations_performed}\n")
-            file_instance.write("The sample created is: " +
-                                f"{self.sample_obtained}\n")
-            file_instance.write("Criteria value of the sample is: " +
-                                f"{self.criteria_value_of_sample}\n")
-            file_instance.write("Discrepancy value of the sample is: " +
-                                f"{self.discrepancy_value_of_sample}\n")
-            file_instance.write("Min eigen value of the sample is: " +
-                                f"{self.min_eigen_value_of_sample}\n")
-            file_instance.write("Maximum maximin distance of the sample is: " +
-                                f"{self.maximin_dist_value_of_sample}\n")
-            file_instance.write(f"Time to solution is: {walltime}\n")
-            #file_instance.write("Expected value of discrepancy of the sample:"
-            #                    + f" {optimal_angles_data['fun']}\n")
-            #file_instance.write("Criteria value for all perturbations: " +
-            #            f"{repr(self.criteria_array_for_all_perturbations)}\n")
-        '''
+            })
 
     def generate_initial_sample(self):
-        """ Step 1: Create an initial sample.
+        """ Create an initial sample.
 
         Returns:
 
@@ -233,10 +217,10 @@ class SamplingModel:
         """ Convert binned samples from above into PDF values.
 
         Args:
-            initial_sample_discretized (numpy.ndarray): TODO
+            initial_sample_discretized (numpy.ndarray):binned samples
 
         Returns:
-            numpy.ndarray: TODO
+            numpy.ndarray: pdf for the binned array
 
         """
 
@@ -262,8 +246,7 @@ class SamplingModel:
         """
 
         cm_root = fft.fft(root_prob_mat)
-        numpy_cm_root = np.array(cm_root)
-        numpy_cm_root = numpy_cm_root/np.sqrt(self.no_of_coefficients)
+        numpy_cm_root = np.array(cm_root) / np.sqrt(self.grid_size)
         return numpy_cm_root
 
     def iterative_step(self, angle_array):
@@ -285,20 +268,21 @@ class SamplingModel:
         index = int((len(fourier_root_cm_flat))/2)
         fourier_root_cm = []
         for i in range(index):
-            fourier_root_cm.append([complex(fourier_root_cm_flat[2*i],
-                                            fourier_root_cm_flat[(2*i)+1])])
-        
-        probability_matrix_obtained = self.create_prob_distribution(
+            fourier_root_cm.append(complex(fourier_root_cm_flat[2*i],
+                                           fourier_root_cm_flat[(2*i)+1]))
+        fourier_root_cm = np.asarray(fourier_root_cm)
+        probability_matrix_obtained = self.create_prob_distribution_1D(
                                                             fourier_root_cm)
         # sum of all entries of prob matrix is 1
         criteria_array_for_iterations_in_perturbation = []
-        #discrepancy_array_for_iterations_in_perturbation = []
-        #maximin_dist_array_for_iterations_in_perturbation = []
-        #e_optimality_array_for_iterations_in_perturbation = []
+        discrepancy_array_for_iterations_in_perturbation = []
+        maximin_dist_array_for_iterations_in_perturbation = []
+        e_optimality_array_for_iterations_in_perturbation = []
         optimal_sample = []
-        optimal_sample_criteria_value = 1
+        optimal_sample_criteria_value = np.infty
+
         for iteration in range(self.no_of_iterations_per_perturbation):
-            sample_created = self.sampling_from_distribution(
+            sample_created = self.sampling_from_iid_distribution(
                                                 probability_matrix_obtained)
             criteria_value_data = self.criteria_result(sample_created)
             criteria_value = criteria_value_data[0]
@@ -311,42 +295,50 @@ class SamplingModel:
                 optimal_sample_eigen_value = criteria_value_data[3]
             
             criteria_array_for_iterations_in_perturbation.append(
-                                                                criteria_value)
-            #maximin_dist_array_for_iterations_in_perturbation.append(
-            #                                    criteria_value_data[2])
-            #discrepancy_array_for_iterations_in_perturbation.append(
-            #                                    criteria_value_data[1])
-            #e_optimality_array_for_iterations_in_perturbation.append(
-            #                                    criteria_value_data[3])
+                                                criteria_value)
+            maximin_dist_array_for_iterations_in_perturbation.append(
+                                                criteria_value_data[2])
+            discrepancy_array_for_iterations_in_perturbation.append(
+                                                criteria_value_data[1])
+            e_optimality_array_for_iterations_in_perturbation.append(
+                                                criteria_value_data[3])
         # Update the sample size according to adaptive schedule
         self.iterate += 1
         if self.adaptive_sample_size:
             if self.iterate % self.adaptive_sample_size == 0:
                 self.no_of_iterations_per_perturbation += 1
+
+        # Calcualte expected values
         criteria_value_for_the_perturbation = \
                     (sum(criteria_array_for_iterations_in_perturbation) /
                      len(criteria_array_for_iterations_in_perturbation))
-        
-        #disc_value_for_the_perturbation = \
-        #        (sum(discrepancy_array_for_iterations_in_perturbation) /
-        #        len(discrepancy_array_for_iterations_in_perturbation))
-        #maximin_value_for_the_perturbation = \
-        #        (sum(maximin_dist_array_for_iterations_in_perturbation) /
-        #        len(maximin_dist_array_for_iterations_in_perturbation))
-        #eigenvalue_value_for_the_perturbation = \
-        #        (sum(e_optimality_array_for_iterations_in_perturbation) /
-        #        len(e_optimality_array_for_iterations_in_perturbation))
+        disc_value_for_the_perturbation = \
+                (sum(discrepancy_array_for_iterations_in_perturbation) /
+                len(discrepancy_array_for_iterations_in_perturbation))
+        maximin_value_for_the_perturbation = \
+                (sum(maximin_dist_array_for_iterations_in_perturbation) /
+                len(maximin_dist_array_for_iterations_in_perturbation))
+        eigenvalue_value_for_the_perturbation = \
+                (sum(e_optimality_array_for_iterations_in_perturbation) /
+                len(e_optimality_array_for_iterations_in_perturbation))
         
         
         self.criteria_array_for_all_perturbations = np.append(
                                 self.criteria_array_for_all_perturbations,
                                 criteria_value_for_the_perturbation)
-        
-        self.sample_obtained = optimal_sample
-        self.criteria_value_of_sample = optimal_sample_criteria_value
-        self.discrepancy_value_of_sample = optimal_sample_disc_value
-        self.min_eigen_value_of_sample = optimal_sample_eigen_value
-        self.maximin_dist_value_of_sample = optimal_sample_maximin_value
+
+        # If this is an improvement, record best and average-case
+        if criteria_value_for_the_perturbation < self.final_exp_criteria:
+            self.sample_obtained = optimal_sample
+            self.criteria_value_of_sample = optimal_sample_criteria_value
+            self.discrepancy_value_of_sample = optimal_sample_disc_value
+            self.min_eigen_value_of_sample = optimal_sample_eigen_value
+            self.maximin_dist_value_of_sample = optimal_sample_maximin_value
+
+            self.final_exp_criteria = criteria_value_for_the_perturbation
+            self.final_exp_disc = disc_value_for_the_perturbation
+            self.final_exp_maximin = maximin_value_for_the_perturbation
+            self.final_exp_e_optimality = eigenvalue_value_for_the_perturbation
 
         logging.info(f"d: {self.dimension_of_input_space}, " +
                      f"n: {self.sample_size}, " +
@@ -375,22 +367,51 @@ class SamplingModel:
 
         '''
 
-        maximindistance = min(pdist(sample)) # By default Euclidean distance
-        discrepancy = qmc.discrepancy(sample)
-        sample_arr = np.array([arr.tolist() for arr in sample])
-        t = sample_arr.T # 4x10
-        u,s,v = np.linalg.svd(t)
-        min_eigenvalue = np.min(s)
+        if self.weights[0] > 0:
+            discrepancy = qmc.discrepancy(sample)
+        else:
+            discrepancy = 1.0
+        if self.weights[1] > 0:
+            maximindistance = np.min(pdist(sample)) # By default Euclidean distance
+        else:
+            maximindistance = 0.0
+        if self.weights[2] > 0:
+            s = np.linalg.svd(sample, compute_uv=False)
+            min_eigenvalue = np.min(s)
+        else:
+            min_eigenvalue = 0.0
         # Record all 3 samples in the history array
         self.history.append([discrepancy, maximindistance, min_eigenvalue])
         # Calculate weighted average
-        result = np.dot(self.weights,
-                        np.array([discrepancy, -maximindistance,
-                                  -min_eigenvalue]))
-        #if result < self.disc_of_optimal_sample:
-        #    self.optimal_sample = sample
-        #    self.disc_of_optimal_sample = result
+        b1 = np.sqrt(float(self.dimension_of_input_space))
+        b2 = float(self.dimension_of_input_space) * np.sqrt(float(self.sample_size))
+        result = np.prod(np.array([discrepancy**self.weights[0],
+                                   (b1 - maximindistance) ** self.weights[1],
+                                   (b2 - min_eigenvalue) ** self.weights[2]]))
         return [result, discrepancy, maximindistance, min_eigenvalue]
+
+    def create_prob_distribution_1D(self, fourier_root_cm):
+        ''' Generate a 1D PDF from a 1D list of sqrt-Fourier coeffs.
+
+        Args:
+            fourier_root_cm (numpy.ndarray): The sqrt-Fourier coeffs for a 1D
+                PDF, from which we calculate the dD PDF values assuming iid.
+
+        Returns:
+            numpy.ndarray: PDF values caluclated
+
+        '''
+
+        prob_ifft_squareroot = fft.ifft(fourier_root_cm * np.sqrt(self.grid_size))
+        
+        ## We can assert this
+        # Sampling to find the expected value of discrepancy
+        # Find the probability matrix by squaring and taking absolute
+        #         value of squareroot FT we obtained
+        # For numerical reasons, take the real part and re-normalize by sum
+        prob_matrix_1d = pow(np.abs(prob_ifft_squareroot),2)
+        prob_matrix_1d = prob_matrix_1d / np.sum(prob_matrix_1d)
+        return prob_matrix_1d
 
     def create_prob_distribution(self, fourier_root_cm):
         ''' Generate a PDF from a list of sqrt-Fourier coeffs.
@@ -405,20 +426,12 @@ class SamplingModel:
         '''
 
         prob_ifft_squareroot = np.array(fft.ifft(fourier_root_cm))
-        '''
-        sum_l2_prob = 0
-        for i in prob_ifft_squareroot:
-            sum_l2_prob+= pow(abs(i), 2)
-        '''
         ## We can assert this
         #file_instance.write(f"The sum of probabilities is: {sum_l2_prob}\n")
         # Sampling to find the expected value of discrepancy
-        # There are total 6 steps
-        # Step 1: Find the probability matrix by squaring and taking absolute
+        # Find the probability matrix by squaring and taking absolute
         #         value of squareroot FT we obtained
         probability_matrix_obtained = abs(pow(prob_ifft_squareroot,2))
-        #file_instance.write("The probability matrix obtained is: " +
-        #                    "probability_matrix_obtained\n")
         return probability_matrix_obtained
 
     def sampling_from_distribution(self, probability_distribution):
@@ -437,11 +450,8 @@ class SamplingModel:
         """
 
         our_sample = np.random.rand(self.sample_size)
-        #with open(self.file_name, "a") as file_instance:
-        #    file_instance.write("The sample to be mapped according to our " +
-        #                        f"distribution is: {our_sample}\n")
         samples_cell_mapping = np.array([])
-        # Step 3: Map the samples to the Random variable
+        # Map the samples to the Random variable
         for each_sample in our_sample:
             diff = each_sample
             i=0
@@ -449,7 +459,6 @@ class SamplingModel:
                 diff -= probability_distribution[i]
                 i+=1
             samples_cell_mapping = np.append(samples_cell_mapping,i-1)
-        #file_instance.write(samples_cell_mapping)
         grid_map_sample = []
         sample_created = []
         # These coordinates are (x_d, ..., x_1)
@@ -475,4 +484,50 @@ class SamplingModel:
             sample_point = np.random.uniform(low=low, high=high,
                                         size=(1,self.dimension_of_input_space))
             sample_created.append(sample_point[0])
+        return sample_created
+
+    def sampling_from_iid_distribution(self, probability_distribution):
+        """ Generate a sample from a PDF.
+
+        Given a PDF, generate a random sample of self.sample_size points.
+
+        Args:
+            probability_distribution (numpy.ndarray): A 1D distribution
+                representation of the PDF values.
+
+        Returns:
+            numpy.ndarray: A dD sample from probability_distribution, assuming
+            all d dimensions are iid, of size self.sample_size.
+
+        """
+
+        our_sample = np.random.rand(self.sample_size *
+                                    self.dimension_of_input_space)
+        samples_cell_mapping = np.array([])
+        # Map the samples to the Random variable
+        for each_sample in our_sample:
+            diff = each_sample
+            i=0
+            while diff >0:
+                diff -= probability_distribution[i]
+                i+=1
+            samples_cell_mapping = np.append(samples_cell_mapping,np.array([i-1]))
+        samples_cell_mapping = samples_cell_mapping.reshape((self.sample_size,
+                                                  self.dimension_of_input_space))
+        sample_created = None
+        # These coordinates are (x_d, ..., x_1)
+        for each_sample_point in samples_cell_mapping:
+            d = self.dimension_of_input_space
+            high=[]
+            low=[]
+            for i in range(self.dimension_of_input_space):
+                q = each_sample_point[i]
+                low.append(q*self.delta)
+                high.append((q+1)*self.delta)
+            sample_point = np.random.uniform(low=low, high=high,
+                                        size=(1,self.dimension_of_input_space))
+            if sample_created is None:
+                sample_created = sample_point.copy()
+            else:
+                sample_created = np.append(sample_created, sample_point, axis=0)
         return sample_created
